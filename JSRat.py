@@ -22,7 +22,6 @@
 import optparse, os, socket, SocketServer, sys
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from classes.colors import *
-import requests # Used for --find-ip option, otherwise not needed
 
 try:
   import readline
@@ -45,28 +44,12 @@ def cls():
 
 
 def internal_ip():
-  'Check Internal IP' # Google IP address used...
   try:
     iip = [(s.connect(('8.8.8.8', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
   except:
     error("Problem resolving internal IP!")
     return "Problem resolving internal IP!"
   return iip
-
-
-def external_ip():
-  'Check External IP using checkip.dyndns.org'
-  url = 'http://checkip.dyndns.org/' # Simple External IP Check using dyndns...
-  try:
-    headers = { 'User-agent' : 'Python External IP Checker v0.01b' } 
-    res = requests.get( url, headers=headers, timeout=30.0 )
-    body = str( res.text )
-    extip = re.search('\d+\.\d+\.\d+\.\d+', body)
-  except:
-    error("Problem resolving extrernal IP!")
-    return "Problem resolving extrernal IP!"
-  return extip.group()
-
 
 def jsrat():
   """
@@ -382,10 +365,9 @@ def main():
 
 # Parse Arguments/Options
 parser = optparse.OptionParser(banner(), version="%prog v0.01b");
-parser.add_option("-i", "--ip", dest="ip", default=None, type="string", help="IP to Bind Server to (i.e. 192.168.0.69)");
+parser.add_option("-i", "--ip", dest="ip", default=None, type="string", help="IP to Bind Server to (default: " + internal_ip() + ")");
 parser.add_option("-p", "--port", dest="port", default=None, type="int", help="Port to Run Server on");
 parser.add_option("-u", "--url", dest="url", default="/connect", type="string", help="URL to Initiate Client Connection (default: /connect)");
-parser.add_option("-f", "--find-ip", action="count", default=0, dest="fip", help="Display Current Internal and External IP Addresses");
 parser.add_option("-v", action="count", default=0, dest="verbose", help="Enable Verbose Output");
 (options, args) = parser.parse_args();
 
@@ -397,23 +379,10 @@ if not args:
   print;
   sys.exit();
 
-if options.fip:
-  print; status("Checking IP....")
-  good("Internal IP: %s" % internal_ip())
-  good("External IP: %s\n\n" % external_ip())
-  sys.exit();
-
-# Establish IP to bind our web server to (i.e. 127.0.0.1||192.168.0.69||10.10.10.10)
 if args and options.ip == None:
-  print ' ';
-  error("Missing Argument: --ip IP");
-  sys.stdout.write('   ');
-  error("You need to provide the IP to bind server to!\n");
-  parser.print_help();
-  print;
-  sys.exit();
+  bind_ip = internal_ip();
 else:
-  bind_ip = options.ip;
+  bind_ip = options.ip
 
 # Establish listner port for our web server (privs needed for low ports < 1024)
 if args and options.port == None:
